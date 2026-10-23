@@ -18,7 +18,6 @@ const COLORS = [
 const MAX_BULK_FILES = 5;
 const MAX_ITEMS = 20;
 const MAX_HISTORY_ENTRIES = 50;
-const HISTORY_STORAGE_KEY = 'rouletteHistory';
 
 const AUDIO_TYPES = {
   mp3: ['audio/mpeg', 'audio/mp3'],
@@ -57,39 +56,6 @@ function showNotice(message, kind = '') {
   notice.className = kind;
 }
 
-function loadHistory() {
-  let serialized;
-  try {
-    serialized = localStorage.getItem(HISTORY_STORAGE_KEY);
-  } catch (error) {
-    console.error('Could not access roulette history storage:', error);
-    showNotice('履歴を読み込めません。ブラウザーの保存設定を確認してください。', 'error');
-    return [];
-  }
-
-  if (!serialized) return [];
-
-  try {
-    const storedHistory = JSON.parse(serialized);
-    if (!Array.isArray(storedHistory)) {
-      throw new Error('履歴データの形式が正しくありません。');
-    }
-
-    return storedHistory
-      .filter(entry =>
-        entry &&
-        typeof entry.result === 'string' &&
-        typeof entry.timestamp === 'string' &&
-        !Number.isNaN(Date.parse(entry.timestamp))
-      )
-      .slice(0, MAX_HISTORY_ENTRIES);
-  } catch (error) {
-    console.error('Could not parse roulette history:', error);
-    showNotice('履歴を読み込めません。履歴を消去して再度お試しください。', 'error');
-    return [];
-  }
-}
-
 function renderHistory() {
   const list = $('historyList');
   list.replaceChildren();
@@ -117,28 +83,14 @@ function recordHistory(result) {
   history.unshift({ result, timestamp: new Date().toISOString() });
   history = history.slice(0, MAX_HISTORY_ENTRIES);
   renderHistory();
-
-  try {
-    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
-    return true;
-  } catch (error) {
-    console.error('Could not save roulette history:', error);
-    return false;
-  }
 }
 
 function clearHistory() {
   if (history.length === 0 || !confirm('当選履歴をすべて消去しますか？')) return;
 
-  try {
-    localStorage.removeItem(HISTORY_STORAGE_KEY);
-    history = [];
-    renderHistory();
-    showNotice('当選履歴を消去しました。');
-  } catch (error) {
-    console.error('Could not clear roulette history:', error);
-    showNotice('履歴を消去できませんでした。ブラウザーの保存設定を確認してください。', 'error');
-  }
+  history = [];
+  renderHistory();
+  showNotice('当選履歴を消去しました。');
 }
 
 function normalizeName(value) {
@@ -638,7 +590,7 @@ $('spinBtn').addEventListener('click', async () => {
 
   try {
     await animateSpin(winnerIndex);
-    const historySaved = recordHistory(winner.text);
+    recordHistory(winner.text);
     $('resultText').textContent = winner.text;
     $('resultAudio').textContent = winner.file
       ? `当選項目の音声：${winner.file.name}`
@@ -653,10 +605,7 @@ $('spinBtn').addEventListener('click', async () => {
       }
     }
 
-    if (!historySaved) {
-      const audioNotice = audioError ? ` 音声の再生にも失敗しました：${audioError}` : '';
-      showNotice(`当選しましたが、履歴を保存できませんでした。ブラウザーの保存設定を確認してください。${audioNotice}`, 'error');
-    } else if (audioError) {
+    if (audioError) {
       showNotice(`音声の再生に失敗しました：${audioError}`, 'error');
     } else {
       showNotice('抽選が完了しました。');
@@ -670,6 +619,5 @@ $('spinBtn').addEventListener('click', async () => {
   }
 });
 
-history = loadHistory();
 renderHistory();
 renderItems();
