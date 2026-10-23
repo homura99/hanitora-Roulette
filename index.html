@@ -89,6 +89,15 @@
         </section>
       </div>
 
+      <section class="panel history-panel" aria-labelledby="historyTitle">
+        <header class="history-header">
+          <h2 class="section-title" id="historyTitle">当選履歴</h2>
+          <button id="clearHistoryBtn" type="button" disabled>履歴を消去</button>
+        </header>
+        <p class="hint" id="historyEmpty">抽選結果がここに表示されます。</p>
+        <ol class="history-list" id="historyList" aria-live="polite"></ol>
+      </section>
+
       <p id="notice" role="status" aria-live="polite"></p>
     </main>
 

@@ -17,6 +17,8 @@ const COLORS = [
 
 const MAX_BULK_FILES = 5;
 const MAX_ITEMS = 20;
+const MAX_HISTORY_ENTRIES = 50;
+const HISTORY_STORAGE_KEY = 'rouletteHistory';
 
 const AUDIO_TYPES = {
   mp3: ['audio/mpeg', 'audio/mp3'],
@@ -35,6 +37,7 @@ let processing = false;
 let currentAudio = null;
 let currentAudioUrl = null;
 let angle = 0;
+let history = [];
 
 const $ = id => document.getElementById(id);
 const canvas = $('wheel');
@@ -52,6 +55,90 @@ function showNotice(message, kind = '') {
   const notice = $('notice');
   notice.textContent = message;
   notice.className = kind;
+}
+
+function loadHistory() {
+  let serialized;
+  try {
+    serialized = localStorage.getItem(HISTORY_STORAGE_KEY);
+  } catch (error) {
+    console.error('Could not access roulette history storage:', error);
+    showNotice('履歴を読み込めません。ブラウザーの保存設定を確認してください。', 'error');
+    return [];
+  }
+
+  if (!serialized) return [];
+
+  try {
+    const storedHistory = JSON.parse(serialized);
+    if (!Array.isArray(storedHistory)) {
+      throw new Error('履歴データの形式が正しくありません。');
+    }
+
+    return storedHistory
+      .filter(entry =>
+        entry &&
+        typeof entry.result === 'string' &&
+        typeof entry.timestamp === 'string' &&
+        !Number.isNaN(Date.parse(entry.timestamp))
+      )
+      .slice(0, MAX_HISTORY_ENTRIES);
+  } catch (error) {
+    console.error('Could not parse roulette history:', error);
+    showNotice('履歴を読み込めません。履歴を消去して再度お試しください。', 'error');
+    return [];
+  }
+}
+
+function renderHistory() {
+  const list = $('historyList');
+  list.replaceChildren();
+  $('historyEmpty').hidden = history.length > 0;
+  $('clearHistoryBtn').disabled = history.length === 0;
+
+  history.forEach(entry => {
+    const row = document.createElement('li');
+    row.className = 'history-entry';
+
+    const result = document.createElement('span');
+    result.className = 'history-result';
+    result.textContent = entry.result;
+
+    const timestamp = document.createElement('time');
+    timestamp.dateTime = entry.timestamp;
+    timestamp.textContent = new Date(entry.timestamp).toLocaleString('ja-JP');
+
+    row.append(result, timestamp);
+    list.append(row);
+  });
+}
+
+function recordHistory(result) {
+  history.unshift({ result, timestamp: new Date().toISOString() });
+  history = history.slice(0, MAX_HISTORY_ENTRIES);
+  renderHistory();
+
+  try {
+    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
+    return true;
+  } catch (error) {
+    console.error('Could not save roulette history:', error);
+    return false;
+  }
+}
+
+function clearHistory() {
+  if (history.length === 0 || !confirm('当選履歴をすべて消去しますか？')) return;
+
+  try {
+    localStorage.removeItem(HISTORY_STORAGE_KEY);
+    history = [];
+    renderHistory();
+    showNotice('当選履歴を消去しました。');
+  } catch (error) {
+    console.error('Could not clear roulette history:', error);
+    showNotice('履歴を消去できませんでした。ブラウザーの保存設定を確認してください。', 'error');
+  }
 }
 
 function normalizeName(value) {
@@ -473,6 +560,8 @@ $('stopAudioBtn').addEventListener('click', () => {
   showNotice('音声を停止しました。');
 });
 
+$('clearHistoryBtn').addEventListener('click', clearHistory);
+
 function animateSpin(winnerIndex) {
   return new Promise(resolve => {
     spinning = true;
@@ -549,18 +638,28 @@ $('spinBtn').addEventListener('click', async () => {
 
   try {
     await animateSpin(winnerIndex);
+    const historySaved = recordHistory(winner.text);
     $('resultText').textContent = winner.text;
     $('resultAudio').textContent = winner.file
       ? `当選項目の音声：${winner.file.name}`
       : 'この項目には音声が設定されていません。';
-    showNotice('抽選が完了しました。');
 
+    let audioError = '';
     if (winner.file) {
       try {
         await playFile(winner.file);
       } catch (error) {
-        showNotice(`音声の再生に失敗しました：${error.message}`, 'error');
+        audioError = error.message;
       }
+    }
+
+    if (!historySaved) {
+      const audioNotice = audioError ? ` 音声の再生にも失敗しました：${audioError}` : '';
+      showNotice(`当選しましたが、履歴を保存できませんでした。ブラウザーの保存設定を確認してください。${audioNotice}`, 'error');
+    } else if (audioError) {
+      showNotice(`音声の再生に失敗しました：${audioError}`, 'error');
+    } else {
+      showNotice('抽選が完了しました。');
     }
   } catch (error) {
     $('resultText').textContent = '抽選を実行できませんでした';
@@ -571,4 +670,6 @@ $('spinBtn').addEventListener('click', async () => {
   }
 });
 
+history = loadHistory();
+renderHistory();
 renderItems();

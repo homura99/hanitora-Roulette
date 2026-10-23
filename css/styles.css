@@ -100,6 +100,50 @@ select:focus-visible {
   box-shadow: 0 8px 28px #1d2a5010;
 }
 
+.history-panel {
+  margin-top: 22px;
+}
+
+.history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.history-header .section-title {
+  margin-bottom: 0;
+}
+
+.history-list {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.history-entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.history-entry time {
+  color: var(--muted);
+  font-size: 0.83rem;
+}
+
+.history-result {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
 .wheel-area {
   display: flex;
   flex-direction: column;
