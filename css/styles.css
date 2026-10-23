@@ -91,6 +91,12 @@ select:focus-visible {
   margin-top: 22px;
 }
 
+.left-column {
+  display: grid;
+  align-content: start;
+  gap: 22px;
+}
+
 .panel {
   min-width: 0;
   padding: 20px;
@@ -101,7 +107,7 @@ select:focus-visible {
 }
 
 .history-panel {
-  margin-top: 22px;
+  min-width: 0;
 }
 
 .history-header {
