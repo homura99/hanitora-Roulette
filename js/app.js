@@ -15,10 +15,8 @@ const COLORS = [
   '#fb7185'
 ];
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
-const MAX_BATCH_SIZE = 15 * 1024 * 1024;
-const MAX_FILES = 5;
-const MAX_ITEMS = 100;
+const MAX_BULK_FILES = 5;
+const MAX_ITEMS = 20;
 
 const AUDIO_TYPES = {
   mp3: ['audio/mpeg', 'audio/mp3'],
@@ -70,9 +68,8 @@ function validateAudioFile(file) {
   if (!acceptedTypes || !acceptedTypes.includes(mimeType)) {
     throw new Error(`${file.name}: 拡張子とMIMEタイプの組み合わせに対応していません。`);
   }
-
-  if (file.size <= 0 || file.size > MAX_FILE_SIZE) {
-    throw new Error(`${file.name}: 音声ファイルは0バイトより大きく、5MB以下にしてください。`);
+  if (file.size <= 0) {
+    throw new Error(`${file.name}: 空の音声ファイルは使用できません。`);
   }
 }
 
@@ -187,14 +184,14 @@ function renderItems() {
   drawWheel();
   $('spinBtn').disabled = items.length < 2 || processing;
   $('stopAudioBtn').disabled = !currentAudio;
-  $('bulkUploadBtn').disabled = pendingBulkFiles.length === 0 || processing;
+  $('bulkApplyBtn').disabled = pendingBulkFiles.length === 0 || processing;
 }
 
 function resetForm() {
   $('itemForm').reset();
   $('editId').value = '';
   $('saveItemBtn').textContent = '項目を追加';
-  $('audioHint').textContent = 'MP3 / WAV / OGG / M4A / AAC / WebM / FLAC、1ファイル最大5MB';
+  $('audioHint').textContent = 'MP3 / WAV / OGG / M4A / AAC / WebM / FLAC（当選時にこのブラウザーで再生）';
 }
 
 function editItem(id) {
@@ -283,17 +280,13 @@ $('cancelEditBtn').addEventListener('click', resetForm);
 
 function collectBulkFiles(fileList) {
   const files = Array.from(fileList);
-  if (files.length > MAX_FILES) {
+  if (files.length > MAX_BULK_FILES) {
     showNotice('一括登録は1回につき最大5ファイルです。', 'error');
     return;
   }
 
   try {
     files.forEach(validateAudioFile);
-    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
-    if (totalSize > MAX_BATCH_SIZE) {
-      throw new Error('一括登録の合計容量は15MB以下にしてください。');
-    }
   } catch (error) {
     showNotice(error.message, 'error');
     return;
@@ -371,10 +364,10 @@ function renderBulkFiles() {
     root.append(row);
   });
 
-  $('bulkUploadBtn').disabled = pendingBulkFiles.length === 0 || processing;
+  $('bulkApplyBtn').disabled = pendingBulkFiles.length === 0 || processing;
 }
 
-$('bulkUploadBtn').addEventListener('click', () => {
+$('bulkApplyBtn').addEventListener('click', () => {
   if (processing || pendingBulkFiles.length === 0) return;
 
   const assignedIds = pendingBulkFiles
@@ -429,48 +422,6 @@ $('bulkUploadBtn').addEventListener('click', () => {
   renderBulkFiles();
   showNotice(`${count}件の音声を割り当てました。`);
 });
-
-function gasCall(functionName, payload) {
-  return new Promise((resolve, reject) => {
-    if (!window.google || !google.script || !google.script.run) {
-      reject(new Error('GASウェブアプリとして開いてください。'));
-      return;
-    }
-
-    google.script.run
-      .withSuccessHandler(response => {
-        if (!response || response.ok !== true) {
-          reject(new Error(response && response.error ? response.error : '処理に失敗しました。'));
-          return;
-        }
-
-        resolve(response);
-      })
-      .withFailureHandler(error => {
-        reject(new Error(error && error.message ? error.message : '通信に失敗しました。'));
-      })[functionName](payload);
-  });
-}
-
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error(`${file.name}を読み込めませんでした。`));
-    reader.onload = () => {
-      const result = String(reader.result || '');
-      const separator = result.indexOf(',');
-
-      if (separator < 0) {
-        reject(new Error(`${file.name}を変換できませんでした。`));
-        return;
-      }
-
-      resolve(result.slice(separator + 1));
-    };
-
-    reader.readAsDataURL(file);
-  });
-}
 
 function stopAudio() {
   if (currentAudio) {
@@ -568,26 +519,16 @@ function validateSpin() {
     throw new Error('項目名は1～100文字で入力してください。');
   }
 
-  const audioItems = items.filter(item => item.file);
-  if (audioItems.length > MAX_FILES) {
-    throw new Error('1回の実行で登録できる音声は最大5ファイルです。項目の音声を解除してください。');
-  }
-
-  audioItems.forEach(item => validateAudioFile(item.file));
-  const totalSize = audioItems.reduce((sum, item) => sum + item.file.size, 0);
-  if (totalSize > MAX_BATCH_SIZE) {
-    throw new Error('1回の実行の音声合計容量は15MB以下にしてください。');
-  }
-
-  return audioItems;
+  items.forEach(item => {
+    if (item.file) validateAudioFile(item.file);
+  });
 }
 
 $('spinBtn').addEventListener('click', async () => {
   if (processing || spinning) return;
 
-  let audioItems;
   try {
-    audioItems = validateSpin();
+    validateSpin();
   } catch (error) {
     showNotice(error.message, 'error');
     return;
@@ -597,82 +538,32 @@ $('spinBtn').addEventListener('click', async () => {
   stopAudio();
   renderItems();
   $('spinBtn').disabled = true;
-  $('resultText').textContent = '準備中…';
+  $('resultText').textContent = '抽選中…';
   $('resultAudio').textContent = '';
-  showNotice('実行内容を確認しています…');
+  showNotice('ルーレット回転中…');
 
   const winnerIndex = Math.floor(Math.random() * items.length);
   const winner = items[winnerIndex];
-  let outcomeKnown = false;
-  let saveSucceeded = false;
 
   try {
-    const files = audioItems.map(item => ({
-      itemId: item.id,
-      name: item.file.name,
-      size: item.file.size,
-      mimeType: item.file.type
-    }));
-
-    const begun = await gasCall('beginSpin', {
-      items: items.map(({ id, text }) => ({ id, text })),
-      files
-    });
-
-    for (let index = 0; index < audioItems.length; index += 1) {
-      const item = audioItems[index];
-      showNotice(`音声を送信しています (${index + 1}/${audioItems.length})：${item.file.name}`);
-      const base64 = await fileToBase64(item.file);
-      await gasCall('uploadAudio', {
-        token: begun.token,
-        itemId: item.id,
-        base64
-      });
-    }
-
-    showNotice('ルーレット回転中…');
-    $('resultText').textContent = '抽選中…';
     await animateSpin(winnerIndex);
-    outcomeKnown = true;
+    $('resultText').textContent = winner.text;
+    $('resultAudio').textContent = winner.file
+      ? `当選項目の音声：${winner.file.name}`
+      : 'この項目には音声が設定されていません。';
+    showNotice('抽選が完了しました。');
 
-    showNotice('結果を記録しています…');
-    await gasCall('finishSpin', {
-      token: begun.token,
-      runId: begun.runId,
-      items: items.map(({ id, text }) => ({ id, text })),
-      winnerId: winner.id
-    });
-    saveSucceeded = true;
+    if (winner.file) {
+      try {
+        await playFile(winner.file);
+      } catch (error) {
+        showNotice(`音声の再生に失敗しました：${error.message}`, 'error');
+      }
+    }
   } catch (error) {
-    if (!outcomeKnown) {
-      $('resultText').textContent = '抽選を実行できませんでした';
-      showNotice(`実行に失敗しました。抽選できませんでした：${error.message}`, 'error');
-    } else {
-      showNotice(`当選結果は確定しましたが、記録に失敗しました：${error.message}`, 'error');
-    }
+    $('resultText').textContent = '抽選を実行できませんでした';
+    showNotice(`抽選に失敗しました：${error.message}`, 'error');
   } finally {
-    if (outcomeKnown) {
-      $('resultText').textContent = winner.text;
-      $('resultAudio').textContent = winner.file
-        ? `当選項目の音声：${winner.file.name}`
-        : 'この項目には音声が設定されていません。';
-
-      if (saveSucceeded) {
-        showNotice('抽選結果を記録しました。', 'success');
-      }
-
-      if (winner.file) {
-        try {
-          await playFile(winner.file);
-        } catch (error) {
-          const resultMessage = saveSucceeded
-            ? '抽選結果は記録済みです。'
-            : '抽選結果の記録にも失敗しています。';
-          showNotice(`${resultMessage} 音声の再生に失敗しました：${error.message}`, 'error');
-        }
-      }
-    }
-
     processing = false;
     renderItems();
   }

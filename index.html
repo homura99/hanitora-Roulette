@@ -4,16 +4,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>シンプルルーレット</title>
-    <style>
-      <?!= include('styles'); ?>
-    </style>
+    <link rel="stylesheet" href="css/styles.css">
   </head>
   <body>
     <main class="wrap">
       <header class="top">
         <div>
           <h1>シンプルルーレット</h1>
-          <p class="status">項目と音声を登録して、ルーレットを回しましょう。</p>
+          <p class="status">項目と音声を登録して、ブラウザー内でルーレットを回しましょう。</p>
         </div>
       </header>
 
@@ -60,7 +58,7 @@
                 accept=".mp3,.wav,.ogg,.m4a,.aac,.webm,.flac,audio/*"
               >
               <div class="hint" id="audioHint">
-                MP3 / WAV / OGG / M4A / AAC / WebM / FLAC、1ファイル最大5MB
+                MP3 / WAV / OGG / M4A / AAC / WebM / FLAC（音声はこのブラウザー内で再生）
               </div>
             </div>
 
@@ -73,7 +71,7 @@
           <div class="bulk">
             <strong>音声ファイルを一括登録</strong>
             <p class="hint">
-              最大5ファイル（合計15MB）。既存項目への割り当て、またはファイル名を項目名にした新規作成ができます。
+              最大5ファイル。既存項目への割り当て、またはファイル名を項目名にした新規作成ができます。
             </p>
             <div id="dropZone" class="drop-zone">ここに音声ファイルをドロップ</div>
             <input
@@ -84,7 +82,7 @@
               aria-label="一括登録する音声ファイル"
             >
             <div id="bulkList" class="bulk-list"></div>
-            <button id="bulkUploadBtn" type="button" disabled>割り当てを登録</button>
+            <button id="bulkApplyBtn" type="button" disabled>割り当てを適用</button>
           </div>
 
           <div class="items" id="itemsList"></div>
@@ -94,8 +92,6 @@
       <p id="notice" role="status" aria-live="polite"></p>
     </main>
 
-    <script>
-      <?!= include('app'); ?>
-    </script>
+    <script src="js/app.js" defer></script>
   </body>
 </html>
