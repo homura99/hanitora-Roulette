@@ -479,12 +479,14 @@ function animateSpin(winnerIndex) {
 
     const count = items.length;
     const slice = Math.PI * 2 / count;
+    const stopOffset = Math.random();
     const desired = (
-      (-(winnerIndex + 0.5) * slice) % (Math.PI * 2) + Math.PI * 2
+      (-(winnerIndex + stopOffset) * slice) % (Math.PI * 2) + Math.PI * 2
     ) % (Math.PI * 2);
     const start = angle % (Math.PI * 2);
     const remaining = (desired - start + Math.PI * 2) % (Math.PI * 2);
-    const revolutions = Math.PI * 2 * (5 + Math.floor(Math.random() * 3));
+    const turns = Math.ceil((5 + Math.floor(Math.random() * 3)) * 1.1);
+    const revolutions = Math.PI * 2 * turns;
     const delta = remaining + revolutions;
     const startedAt = performance.now();
     const duration = 5200;
