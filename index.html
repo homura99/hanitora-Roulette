@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>シンプルルーレット</title>
+    <style>
+      <?!= include('styles'); ?>
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <header class="top">
+        <div>
+          <h1>シンプルルーレット</h1>
+          <p class="status">項目と音声を登録して、ルーレットを回しましょう。</p>
+        </div>
+      </header>
+
+      <div class="layout">
+        <section class="panel wheel-area" aria-label="ルーレット">
+          <div class="wheel-box">
+            <div class="pointer" aria-hidden="true"></div>
+            <canvas id="wheel" width="800" height="800" aria-label="ルーレットの抽選盤"></canvas>
+          </div>
+
+          <div class="actions">
+            <button id="spinBtn" class="primary" type="button">ルーレットを回す</button>
+            <button id="stopAudioBtn" type="button" disabled>音声を停止</button>
+          </div>
+
+          <div class="result" aria-live="polite">
+            <small>当選結果</small>
+            <strong id="resultText">項目を2件以上登録してください</strong>
+            <div id="resultAudio" class="hint"></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2 class="section-title">項目の設定</h2>
+          <form id="itemForm">
+            <input type="hidden" id="editId">
+
+            <div class="field">
+              <label for="itemText">項目名</label>
+              <input
+                id="itemText"
+                type="text"
+                maxlength="100"
+                placeholder="例：ゲームをする！"
+                required
+              >
+            </div>
+
+            <div class="field">
+              <label for="audioFile">音声ファイル（任意）</label>
+              <input
+                id="audioFile"
+                type="file"
+                accept=".mp3,.wav,.ogg,.m4a,.aac,.webm,.flac,audio/*"
+              >
+              <div class="hint" id="audioHint">
+                MP3 / WAV / OGG / M4A / AAC / WebM / FLAC、1ファイル最大5MB
+              </div>
+            </div>
+
+            <div class="editor-actions">
+              <button class="primary" type="submit" id="saveItemBtn">項目を追加</button>
+              <button type="button" id="cancelEditBtn">入力をクリア</button>
+            </div>
+          </form>
+
+          <div class="bulk">
+            <strong>音声ファイルを一括登録</strong>
+            <p class="hint">
+              最大5ファイル（合計15MB）。既存項目への割り当て、またはファイル名を項目名にした新規作成ができます。
+            </p>
+            <div id="dropZone" class="drop-zone">ここに音声ファイルをドロップ</div>
+            <input
+              id="bulkFiles"
+              type="file"
+              accept=".mp3,.wav,.ogg,.m4a,.aac,.webm,.flac,audio/*"
+              multiple
+              aria-label="一括登録する音声ファイル"
+            >
+            <div id="bulkList" class="bulk-list"></div>
+            <button id="bulkUploadBtn" type="button" disabled>割り当てを登録</button>
+          </div>
+
+          <div class="items" id="itemsList"></div>
+        </section>
+      </div>
+
+      <p id="notice" role="status" aria-live="polite"></p>
+    </main>
+
+    <script>
+      <?!= include('app'); ?>
+    </script>
+  </body>
+</html>
