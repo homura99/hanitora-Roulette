@@ -28,6 +28,12 @@
               <button id="stopAudioBtn" type="button" disabled>音声を停止</button>
             </div>
 
+            <div class="spin-duration">
+              <label for="spinDuration">回転時間</label>
+              <input id="spinDuration" type="range" min="3" max="20" step="1" value="8">
+              <output id="spinDurationValue" for="spinDuration">8秒</output>
+            </div>
+
             <div class="result" aria-live="polite">
               <small>当選結果</small>
               <strong id="resultText">項目を2件以上登録してください</strong>

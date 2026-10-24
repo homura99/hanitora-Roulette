@@ -35,6 +35,7 @@ let spinning = false;
 let processing = false;
 let currentAudio = null;
 let currentAudioUrl = null;
+let spinAudioContext = null;
 let angle = 0;
 let history = [];
 
@@ -514,7 +515,46 @@ $('stopAudioBtn').addEventListener('click', () => {
 
 $('clearHistoryBtn').addEventListener('click', clearHistory);
 
-function animateSpin(winnerIndex) {
+$('spinDuration').addEventListener('input', event => {
+  $('spinDurationValue').value = `${event.target.value}秒`;
+});
+
+async function prepareSpinAudio() {
+  if (!window.AudioContext) {
+    throw new Error('このブラウザーは効果音に対応していません。');
+  }
+
+  if (!spinAudioContext) {
+    spinAudioContext = new window.AudioContext();
+  }
+
+  await spinAudioContext.resume();
+  if (spinAudioContext.state !== 'running') {
+    throw new Error('ブラウザーで音声の再生が許可されていません。');
+  }
+
+  return spinAudioContext;
+}
+
+function playSpinTick(audioContext, offset = 0) {
+  if (!audioContext || audioContext.state !== 'running') return;
+
+  const startAt = audioContext.currentTime + offset;
+  const oscillator = audioContext.createOscillator();
+  const volume = audioContext.createGain();
+  oscillator.type = 'triangle';
+  oscillator.frequency.setValueAtTime(900, startAt);
+  oscillator.frequency.exponentialRampToValueAtTime(420, startAt + 0.025);
+  volume.gain.setValueAtTime(0.0001, startAt);
+  volume.gain.exponentialRampToValueAtTime(0.08, startAt + 0.002);
+  volume.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.035);
+  oscillator.connect(volume);
+  volume.connect(audioContext.destination);
+  oscillator.start(startAt);
+  oscillator.stop(startAt + 0.04);
+}
+
+function animateSpin(winnerIndex, audioContext, duration) {
   return new Promise(resolve => {
     spinning = true;
 
@@ -526,16 +566,22 @@ function animateSpin(winnerIndex) {
     ) % (Math.PI * 2);
     const start = angle % (Math.PI * 2);
     const remaining = (desired - start + Math.PI * 2) % (Math.PI * 2);
-    const turns = Math.ceil((5 + Math.floor(Math.random() * 3)) * 1.1);
+    const turns = 8 + Math.floor(Math.random() * 3);
     const revolutions = Math.PI * 2 * turns;
     const delta = remaining + revolutions;
     const startedAt = performance.now();
-    const duration = 5200;
+    let lastTickBoundary = Math.floor(start / slice);
 
     function frame(now) {
       const progress = Math.min(1, (now - startedAt) / duration);
       const eased = 1 - Math.pow(1 - progress, 4);
       angle = start + delta * eased;
+      const tickBoundary = Math.floor(angle / slice);
+      const tickCount = Math.min(tickBoundary - lastTickBoundary, 3);
+      for (let tick = 0; tick < tickCount; tick += 1) {
+        playSpinTick(audioContext, tick * 0.018);
+      }
+      lastTickBoundary = tickBoundary;
       drawWheel();
 
       if (progress < 1) {
@@ -581,15 +627,25 @@ $('spinBtn').addEventListener('click', async () => {
   stopAudio();
   renderItems();
   $('spinBtn').disabled = true;
+  $('spinDuration').disabled = true;
   $('resultText').textContent = '抽選中…';
   $('resultAudio').textContent = '';
   showNotice('ルーレット回転中…');
+  const duration = Number($('spinDuration').value) * 1000;
+
+  let tickAudioContext = null;
+  let tickAudioError = '';
+  try {
+    tickAudioContext = await prepareSpinAudio();
+  } catch (error) {
+    tickAudioError = error.message;
+  }
 
   const winnerIndex = Math.floor(Math.random() * items.length);
   const winner = items[winnerIndex];
 
   try {
-    await animateSpin(winnerIndex);
+    await animateSpin(winnerIndex, tickAudioContext, duration);
     recordHistory(winner.text);
     $('resultText').textContent = winner.text;
     $('resultAudio').textContent = winner.file
@@ -607,6 +663,8 @@ $('spinBtn').addEventListener('click', async () => {
 
     if (audioError) {
       showNotice(`音声の再生に失敗しました：${audioError}`, 'error');
+    } else if (tickAudioError) {
+      showNotice(`回転音を再生できませんでした：${tickAudioError}`, 'error');
     } else {
       showNotice('抽選が完了しました。');
     }
@@ -615,6 +673,7 @@ $('spinBtn').addEventListener('click', async () => {
     showNotice(`抽選に失敗しました：${error.message}`, 'error');
   } finally {
     processing = false;
+    $('spinDuration').disabled = false;
     renderItems();
   }
 });

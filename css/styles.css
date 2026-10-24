@@ -195,6 +195,27 @@ canvas {
   justify-content: center;
 }
 
+.spin-duration {
+  display: grid;
+  grid-template-columns: auto minmax(100px, 1fr) 3em;
+  align-items: center;
+  gap: 10px;
+  width: min(100%, 360px);
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.spin-duration input {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.spin-duration output {
+  color: var(--muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 .result {
   width: 100%;
   padding: 15px;
